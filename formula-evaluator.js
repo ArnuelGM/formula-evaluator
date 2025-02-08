@@ -1,15 +1,16 @@
 export class FormulaEvaluator {
-  constructor(formula = "", ...functions) {
+  constructor(formula = "", functions = {}) {
     this.formula = formula;
     this.functions = functions;
   }
 
-  addFunction(...functions) {
-    this.functions = this.functions.concat(functions);
+  addFunction(newFunction) {
+    this.functions = { ...this.functions, ...newFunction };
   }
 
   serializeData(data) {
-    return `const contextData = ${JSON.stringify(data)};`;
+    const serializedData = `const contextData = ${JSON.stringify(data)};`;
+    return serializedData;
   }
 
   setFomula(formula) {
@@ -17,35 +18,40 @@ export class FormulaEvaluator {
   }
 
   getVariables() {
-    const regexp = new RegExp(/\[(.+)\]/);
-    const variablePaths = this.formula.match(regexp);
-    return variablePaths.map(variablePath => variablePath.slice(1, -1));
+    const regexp = new RegExp(/\[([a-zA-Z_$]+(\.[a-zA-Z_$]+((\[(\d+|(['"`].+['"`]))\]))*)*)\]/g);
+    const variablePaths = this.formula.match(regexp) ?? [];
+    return variablePaths;
   }
 
   getParsedFormula() {
     const variablePaths = this.getVariables();
-    return variablePaths.reduce((formula, variablePath) => {
-      const path = variablePath.startsWith("[")
-        ? variablePath
-        : `.${variablePath}`
-      return formula.replaceAll(
-        variablePath,
-        `contextData${path}`
-      );
+    const parsedFormula = variablePaths.reduce((formula, prop) => {
+      const path = `.${prop.slice(1, -1)}`;
+      return formula.replaceAll(prop, `contextData${path}`);
     }, this.formula);
+    return parsedFormula;
   }
 
   createFunctionsContext() {
-    return this.functions.reduce((context, currentFunction) => {
-      return `${context}\nconst ${currentFunction.name} = ${currentFunction.body};`
-    }, "");
+    const functions = Object.keys(this.functions).map((name) => {
+      return `const ${name} = ${this.functions[name].toString()};`
+    }).join("\n");
+    return functions;
   }
 
   createContext(data) {
+    const parsedFormula = this.getParsedFormula();
     const serializedData = this.serializeData(data);
     const functionsContext = this.createFunctionsContext();
-    const parsedFormula = this.getParsedFormula();
-    return `${serializedData}\n${functionsContext}\n${parsedFormula};`
+    return `(function() {
+  try {
+    ${serializedData}
+    ${functionsContext}
+    return (${parsedFormula.trim()});
+  } catch(e) {
+    throw e;
+  }
+})();`;
   }
 
   evaluate(contextData) {
@@ -53,3 +59,48 @@ export class FormulaEvaluator {
     return eval(context);
   }
 }
+
+
+/*
+const functions = {
+  add: (a, b) => (
+    new Promise(resolve => {
+      setTimeout(() => resolve(a + b), 4000);
+    })
+  ),
+  
+  mul: (a, b) => a * b,
+};
+
+const f = new FormulaEvaluator(`
+  add(
+    [a.b],
+    mul([a.b], [b.c['hola mundo'][0].d])
+  )
+`, functions);
+
+const context = {
+  a: {
+    b: 4
+  },
+  b: {
+    c: { 
+      "hola mundo": [
+        { d: 5 }
+      ]
+    }
+  }
+};
+
+f.evaluate(context)
+  .then(console.log) <----------------------------- 24
+  .catch((e) => {
+    console.log("error:", e.message);
+  });
+*/
+
+
+
+
+
+
