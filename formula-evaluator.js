@@ -25,9 +25,10 @@ export class FormulaEvaluator {
 
   getParsedFormula() {
     const variablePaths = this.getVariables();
-    const parsedFormula = variablePaths.reduce((formula, prop) => {
-      const path = `.${prop.slice(1, -1)}`;
-      return formula.replaceAll(prop, `contextData${path}`);
+    const parsedFormula = variablePaths.reduce((formula, variablePath) => {
+      const variable = variablePath.slice(1, -1);
+      const path = variable.startsWith("[") ? variable : `.${variable}`;
+      return formula.replaceAll(variablePath, `contextData${path}`);
     }, this.formula);
     return parsedFormula;
   }
@@ -35,7 +36,7 @@ export class FormulaEvaluator {
   createFunctionsContext() {
     const functions = Object.keys(this.functions).map((name) => {
       return `const ${name} = ${this.functions[name].toString()};`
-    }).join("\n");
+    }).join("\n    ");
     return functions;
   }
 
@@ -43,7 +44,7 @@ export class FormulaEvaluator {
     const parsedFormula = this.getParsedFormula();
     const serializedData = this.serializeData(data);
     const functionsContext = this.createFunctionsContext();
-    return `(function() {
+    const executionContext = `(function() {
   try {
     ${serializedData}
     ${functionsContext}
@@ -52,6 +53,7 @@ export class FormulaEvaluator {
     throw e;
   }
 })();`;
+    return executionContext;
   }
 
   evaluate(contextData) {
