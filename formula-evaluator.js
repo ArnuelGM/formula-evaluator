@@ -18,7 +18,7 @@ export class FormulaEvaluator {
   }
 
   getVariables() {
-    const regexp = new RegExp(/\[(?=[^\]]+])(?:[a-zA-Z_$][\w$]*)?(?:(?:[a-zA-Z_$][\w$]*)\.[a-zA-Z_$][\w$]*)*(?:(?:\[\d+\]|\["[^"]+?"\]|\['[^']+?'\]|\[`[^`]+?`\])(?:\.[a-zA-Z_$][\w$]*)*)*\]/g);
+    const regexp = new RegExp(/\[(?:[a-zA-Z_$][a-zA-Z_$0-9]*|\[(?:\d+|"(?:[^"]|(?:\\"))+"|'(?:[^']|(?:\\'))+'|`(?:[^`]|(?:\\`))+`)\])(?:(?:\.[a-zA-Z_$][a-zA-Z_$0-9]*)*(?:\[(?:\d+|"(?:[^"]|(?:\\"))+"|'(?:[^']|(?:\\'))+'|`(?:[^`]|(?:\\`))+`)\])*)*\]/g);
     const variablePaths = new Set(this.formula.match(regexp) ?? []);
     return Array.from(variablePaths);
   }
